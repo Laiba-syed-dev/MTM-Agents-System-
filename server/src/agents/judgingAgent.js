@@ -3,26 +3,44 @@ import { traceService } from '../services/traceService.js';
 import { parseAndValidateAiJson } from '../schemas/aiResponseSchema.js';
 
 export async function runJudgingPlanning(acceptedFacts, sessionId = 'session_001') {
-  const prompt = `You are the Judging Planner for the hackathon.
-Accepted facts:
-- Total teams: 50 teams.
-- Available confirmed judges: 20 judges.
-- Constraint: No judge may evaluate more than 3 teams.
-- Time required: 15 minutes per team.
-- Honorarium: Rs 5,000 per judge.
+  // 1. Dynamically extract judging facts
+  const teamsFact = acceptedFacts.find((f) => f.field === 'totalTeams');
+  const availableJudgesFact = acceptedFacts.find((f) => f.field === 'availableJudges');
+  const maxTeamsFact = acceptedFacts.find((f) => f.field === 'maxTeamsPerJudge');
+  const minutesPerTeamFact = acceptedFacts.find((f) => f.field === 'minutesPerTeam');
+  const honorariumFact = acceptedFacts.find((f) => f.field === 'honorariumPerJudge');
 
-Determine number of judges to assign, total judging time, and honorarium.
+  const totalTeams = teamsFact ? Number(teamsFact.value) : 50;
+  const availableJudges = availableJudgesFact ? Number(availableJudgesFact.value) : 20;
+  const maxTeamsPerJudge = maxTeamsFact ? Number(maxTeamsFact.value) : 3;
+  const minutesPerTeam = minutesPerTeamFact ? Number(minutesPerTeamFact.value) : 15;
+  const honorariumPerJudge = honorariumFact ? Number(honorariumFact.value) : 5000;
+
+  const minJudgesRequired = Math.ceil(totalTeams / maxTeamsPerJudge);
+  const assignedJudges = Math.min(availableJudges, Math.max(minJudgesRequired, minJudgesRequired));
+  const totalHonorarium = assignedJudges * honorariumPerJudge;
+  const judgingDurationMinutes = maxTeamsPerJudge * minutesPerTeam;
+
+  const prompt = `You are the Judging Planner for the hackathon.
+Dynamic facts extracted from messages:
+- Total participating teams: ${totalTeams} teams.
+- Available confirmed judges: ${availableJudges} judges.
+- Maximum teams evaluated per judge: ${maxTeamsPerJudge} teams.
+- Evaluation time per team: ${minutesPerTeam} minutes.
+- Honorarium per judge: Rs ${honorariumPerJudge.toLocaleString()}.
+
+Determine number of judges to assign, total judging session duration, and total honorarium.
 Return JSON format:
 {
-  "totalTeams": 50,
-  "availableJudges": 20,
-  "assignedJudges": 17,
-  "maxTeamsPerJudge": 3,
-  "minutesPerTeam": 15,
-  "honorariumPerJudge": 5000,
-  "totalHonorarium": 85000,
-  "judgingDurationMinutes": 45,
-  "reasoning": "With 50 teams and max 3 teams/judge, ceil(50/3)=17 judges are required. Total honorarium is 17 * 5,000 = 85,000 PKR."
+  "totalTeams": ${totalTeams},
+  "availableJudges": ${availableJudges},
+  "assignedJudges": ${assignedJudges},
+  "maxTeamsPerJudge": ${maxTeamsPerJudge},
+  "minutesPerTeam": ${minutesPerTeam},
+  "honorariumPerJudge": ${honorariumPerJudge},
+  "totalHonorarium": ${totalHonorarium},
+  "judgingDurationMinutes": ${judgingDurationMinutes},
+  "reasoning": "With ${totalTeams} teams and max ${maxTeamsPerJudge} teams/judge, ceil(${totalTeams}/${maxTeamsPerJudge})=${assignedJudges} judges are required. Total honorarium is ${assignedJudges} * ${honorariumPerJudge} = ${totalHonorarium} PKR."
 }`;
 
   const res = await aiService.generate({
@@ -45,10 +63,21 @@ Return JSON format:
   });
 
   const parsed = parseAndValidateAiJson(res.output);
-  if (parsed.success && parsed.data?.assignedJudges) {
-    // JavaScript ensures arithmetic correctness:
+  if (parsed.success && parsed.data?.assignedJudges >= minJudgesRequired) {
     parsed.data.totalHonorarium = parsed.data.assignedJudges * parsed.data.honorariumPerJudge;
     return parsed.data;
   }
-  return aiService._planJudgingLocally(prompt);
+
+  // Deterministic JavaScript calculation
+  return {
+    totalTeams,
+    availableJudges,
+    assignedJudges,
+    maxTeamsPerJudge,
+    minutesPerTeam,
+    honorariumPerJudge,
+    totalHonorarium,
+    judgingDurationMinutes,
+    reasoning: `${totalTeams} teams divided among judges at max ${maxTeamsPerJudge} teams per judge requires ${assignedJudges} judges. Sufficient coverage confirmed (${availableJudges} available).`,
+  };
 }

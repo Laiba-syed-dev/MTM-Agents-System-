@@ -3,16 +3,16 @@ import { traceService } from '../services/traceService.js';
 import { parseAndValidateAiJson } from '../schemas/aiResponseSchema.js';
 
 export async function runBudgetPlanning(acceptedFacts, venuePlan, foodPlan, judgingPlan, sessionId = 'session_001') {
-  const budgetFacts = acceptedFacts.filter((f) => f.category === 'budget');
-  const totalBudgetFact = budgetFacts.find((f) => f.field === 'totalBudget');
-  const totalBudget = totalBudgetFact ? totalBudgetFact.value : 650000;
+  // 1. Dynamically find total budget fact
+  const totalBudgetFact = acceptedFacts.find((f) => f.category === 'budget' && f.field === 'totalBudget');
+  const totalBudget = totalBudgetFact ? Number(totalBudgetFact.value) : 650000;
 
-  // Extract other expenses from accepted facts (prizes, internet, printing)
-  const otherExpenses = [];
-  for (const f of budgetFacts) {
-    if (f.field === 'expense_item') {
-      otherExpenses.push({
-        name: f.name || 'Pre-committed Expense',
+  // 2. Gather all pre-committed expenses dynamically from accepted facts
+  const preCommittedExpenses = [];
+  for (const f of acceptedFacts) {
+    if (f.category === 'budget' && (f.field === 'expense_item' || f.field === 'pre_committed_expense')) {
+      preCommittedExpenses.push({
+        name: f.name || f.item || 'Committed Expense',
         category: 'budget',
         amount: Number(f.value) || 0,
         sourceMessageId: f.messageId,
@@ -20,33 +20,41 @@ export async function runBudgetPlanning(acceptedFacts, venuePlan, foodPlan, judg
     }
   }
 
-  // If no other expenses extracted yet, populate defaults from facts
-  if (otherExpenses.length === 0) {
-    otherExpenses.push(
-      { name: 'Prizes', category: 'budget', amount: 100000 },
-      { name: 'Backup Internet', category: 'budget', amount: 20000 },
-      { name: 'Printing', category: 'budget', amount: 10000 }
-    );
-  }
+  // 3. Assemble consolidated expenses list
+  const consolidatedExpenses = [
+    {
+      name: `Venue Rental (${venuePlan?.selectedHall || 'Hall Option'})`,
+      category: 'venue',
+      amount: venuePlan?.cost || 0,
+    },
+    {
+      name: `Food & Catering (${foodPlan?.packageSelected || 'Lunch'} for ${foodPlan?.quantity || 0} heads)`,
+      category: 'food',
+      amount: foodPlan?.totalCalculatedCost || 0,
+    },
+    {
+      name: `Judges Honorarium (${judgingPlan?.assignedJudges || 0} judges)`,
+      category: 'judging',
+      amount: judgingPlan?.totalHonorarium || 0,
+    },
+    ...preCommittedExpenses,
+  ];
+
+  const totalCalculatedExpenses = consolidatedExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const remainingBudget = totalBudget - totalCalculatedExpenses;
 
   const prompt = `You are the Budget Planner for the hackathon.
 Approved total budget: Rs ${totalBudget.toLocaleString()}
 Departmental expenses:
-- Venue (${venuePlan?.selectedHall || 'Hall A'}): Rs ${venuePlan?.cost?.toLocaleString() || '120,000'}
-- Food Catering: Rs ${foodPlan?.totalCalculatedCost?.toLocaleString() || '212,400'}
-- Judges Honorarium: Rs ${judgingPlan?.totalHonorarium?.toLocaleString() || '85,000'}
-- Other pre-committed expenses: ${otherExpenses.map((e) => `${e.name}: Rs ${e.amount.toLocaleString()}`).join(', ')}
+${consolidatedExpenses.map((e) => `- ${e.name}: Rs ${e.amount.toLocaleString()}`).join('\n')}
 
 Compile the itemized expenses and calculate total expenses and remaining funds.
 Return JSON format:
 {
   "totalBudget": ${totalBudget},
-  "expenses": [
-    { "name": "Venue Rental (${venuePlan?.selectedHall || 'Hall A'})", "category": "venue", "amount": ${venuePlan?.cost || 120000} },
-    { "name": "Food Catering", "category": "food", "amount": ${foodPlan?.totalCalculatedCost || 212400} },
-    { "name": "Judges Honorarium", "category": "judging", "amount": ${judgingPlan?.totalHonorarium || 85000} },
-    ${otherExpenses.map((e) => JSON.stringify(e)).join(',\n    ')}
-  ]
+  "totalExpenses": ${totalCalculatedExpenses},
+  "remainingBudget": ${remainingBudget},
+  "expenses": ${JSON.stringify(consolidatedExpenses, null, 2)}
 }`;
 
   const res = await aiService.generate({
@@ -72,5 +80,12 @@ Return JSON format:
   if (parsed.success && parsed.data?.totalBudget && Array.isArray(parsed.data?.expenses)) {
     return parsed.data;
   }
-  return aiService._planBudgetLocally(prompt);
+
+  // Deterministic JavaScript calculation
+  return {
+    totalBudget,
+    totalExpenses: totalCalculatedExpenses,
+    remainingBudget,
+    expenses: consolidatedExpenses,
+  };
 }
