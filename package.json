@@ -1,0 +1,27 @@
+{
+  "name": "mtm-agent-system",
+  "version": "1.0.0",
+  "description": "Mind to Machine Hackathon - AI-Powered Message-Driven Event Planning Agent System",
+  "main": "server/src/server.js",
+  "scripts": {
+    "mtm": "node server/src/cli.js",
+    "start": "node server/src/server.js",
+    "server": "nodemon server/src/server.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "test": "node --test server/tests/**/*.test.js"
+  },
+  "keywords": [
+    "hackathon",
+    "agent-system",
+    "ai",
+    "planner",
+    "provenance"
+  ],
+  "author": "MTM Team",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
