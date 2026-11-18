@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { FactResolver } from '../../src/services/factResolver.js';
 
-test('FactResolver: detects superseded food prices (1,200 supersedes 1,000)', () => {
+test('FactResolver: detects superseded food prices (1,200 supersedes 1,000)', async () => {
   const resolver = new FactResolver('test_session');
   const facts = [
     {
@@ -27,7 +27,7 @@ test('FactResolver: detects superseded food prices (1,200 supersedes 1,000)', ()
     { _id: 'msg_004', sender: 'Caterer, WhatsApp', rawText: 'Salam bhai! Standard lunch box ab Rs 1,200 per head hoga, basic wala Rs 800. Delivery free hai.' },
   ];
 
-  const { acceptedFacts } = resolver.resolveFacts(facts, messages);
+  const { acceptedFacts } = await resolver.resolveFacts(facts, messages);
   const acceptedFoodPrice = acceptedFacts.find((f) => f.field === 'pricePerPerson');
 
   assert.strictEqual(acceptedFoodPrice.value, 1200);
@@ -35,7 +35,7 @@ test('FactResolver: detects superseded food prices (1,200 supersedes 1,000)', ()
   assert.strictEqual(facts[0].decision, 'superseded');
 });
 
-test('FactResolver: rejects unauthorized proposals (e.g. Student society DJ proposal)', () => {
+test('FactResolver: rejects unauthorized proposals (e.g. Student society DJ proposal)', async () => {
   const resolver = new FactResolver('test_session');
   const facts = [
     {
@@ -51,7 +51,7 @@ test('FactResolver: rejects unauthorized proposals (e.g. Student society DJ prop
     { _id: 'msg_007', sender: 'Student society, WhatsApp', rawText: 'Can we get a DJ for the closing? The quote is Rs 50,000.' },
   ];
 
-  const { acceptedFacts, rejectedRecords } = resolver.resolveFacts(facts, messages);
+  const { acceptedFacts, rejectedRecords } = await resolver.resolveFacts(facts, messages);
   assert.strictEqual(acceptedFacts.length, 0);
   assert.strictEqual(rejectedRecords.length, 1);
   assert.strictEqual(rejectedRecords[0].reasonCode, 'UNAUTHORIZED_PROPOSAL');

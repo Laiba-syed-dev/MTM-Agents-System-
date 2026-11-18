@@ -28,7 +28,7 @@ test('Integration Pipeline: Process Sample Pack & Sequential Updates', async () 
 
   // 3. Fact Resolution
   const resolver = new FactResolver(sessionId);
-  const { acceptedFacts, rejectedRecords } = resolver.resolveFacts(extractedFacts, messages);
+  const { acceptedFacts, rejectedRecords } = await resolver.resolveFacts(extractedFacts, messages);
   assert.ok(acceptedFacts.length > 0);
   assert.strictEqual(rejectedRecords.length, 1); // DJ proposal rejected
 

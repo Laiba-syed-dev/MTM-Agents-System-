@@ -10,7 +10,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
-router.post('/upload', upload.single('file'), (req, res) => {
+router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file && !req.body.text) {
       return res.status(400).json({ success: false, error: 'No file or text content provided' });
@@ -32,7 +32,7 @@ router.post('/upload', upload.single('file'), (req, res) => {
       processingStatus: 'uploaded',
     };
 
-    globalStore.addMessagePack(pack);
+    await globalStore.addMessagePack(pack);
 
     res.json({
       success: true,

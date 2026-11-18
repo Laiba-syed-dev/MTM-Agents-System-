@@ -18,7 +18,7 @@ router.post('/', (req, res) => {
 // Process session
 router.post('/:id/process', async (req, res) => {
   const sessionId = req.params.id;
-  const pack = globalStore.getMessagePack(sessionId);
+  const pack = await globalStore.getMessagePack(sessionId);
 
   if (!pack) {
     return res.status(404).json({ success: false, error: 'Message pack for session not found' });
@@ -30,7 +30,7 @@ router.post('/:id/process', async (req, res) => {
     // 1. Parse messages
     const messages = parseMessagePack(pack.originalContent, pack._id, sessionId);
     for (const msg of messages) {
-      globalStore.addMessage(msg);
+      await globalStore.addMessage(msg);
     }
 
     // 2. Extract facts
@@ -38,7 +38,7 @@ router.post('/:id/process', async (req, res) => {
 
     // 3. Resolve conflicts
     const resolver = new FactResolver(sessionId);
-    const { acceptedFacts, rejectedRecords } = resolver.resolveFacts(extractedFacts, messages);
+    const { acceptedFacts, rejectedRecords } = await resolver.resolveFacts(extractedFacts, messages);
 
     // 4. Run planning & validation
     const planningService = new PlanningService(sessionId);
@@ -63,12 +63,12 @@ router.post('/:id/process', async (req, res) => {
 });
 
 // Get session info / status
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const sessionId = req.params.id;
-  const plan = globalStore.getLatestPlan(sessionId);
-  const messages = globalStore.getMessagesBySession(sessionId);
-  const facts = globalStore.getFactsBySession(sessionId);
-  const rejected = globalStore.getRejectedBySession(sessionId);
+  const plan = await globalStore.getLatestPlan(sessionId);
+  const messages = await globalStore.getMessagesBySession(sessionId);
+  const facts = await globalStore.getFactsBySession(sessionId);
+  const rejected = await globalStore.getRejectedBySession(sessionId);
 
   res.json({
     success: true,
@@ -85,20 +85,20 @@ router.get('/:id', (req, res) => {
 });
 
 // Get messages
-router.get('/:id/messages', (req, res) => {
-  const messages = globalStore.getMessagesBySession(req.params.id);
+router.get('/:id/messages', async (req, res) => {
+  const messages = await globalStore.getMessagesBySession(req.params.id);
   res.json({ success: true, count: messages.length, messages });
 });
 
 // Get facts
-router.get('/:id/facts', (req, res) => {
-  const facts = globalStore.getFactsBySession(req.params.id);
+router.get('/:id/facts', async (req, res) => {
+  const facts = await globalStore.getFactsBySession(req.params.id);
   res.json({ success: true, count: facts.length, facts });
 });
 
 // Get current plan
-router.get('/:id/plan', (req, res) => {
-  const plan = globalStore.getLatestPlan(req.params.id);
+router.get('/:id/plan', async (req, res) => {
+  const plan = await globalStore.getLatestPlan(req.params.id);
   if (!plan) {
     return res.status(404).json({ success: false, error: 'No plan generated yet' });
   }
@@ -106,21 +106,21 @@ router.get('/:id/plan', (req, res) => {
 });
 
 // Get all plan versions (history)
-router.get('/:id/plans', (req, res) => {
-  const plans = globalStore.getPlansBySession(req.params.id);
+router.get('/:id/plans', async (req, res) => {
+  const plans = await globalStore.getPlansBySession(req.params.id);
   res.json({ success: true, count: plans.length, plans });
 });
 
 // Get execution trace
-router.get('/:id/trace', (req, res) => {
-  const traces = globalStore.getTracesBySession(req.params.id);
+router.get('/:id/trace', async (req, res) => {
+  const traces = await globalStore.getTracesBySession(req.params.id);
   const tokenSummary = traceService.tokenAccumulator.getSummary();
   res.json({ success: true, count: traces.length, traces, tokenSummary });
 });
 
 // Get rejected messages
-router.get('/:id/rejected', (req, res) => {
-  const rejected = globalStore.getRejectedBySession(req.params.id);
+router.get('/:id/rejected', async (req, res) => {
+  const rejected = await globalStore.getRejectedBySession(req.params.id);
   res.json({ success: true, count: rejected.length, rejected });
 });
 
@@ -145,8 +145,8 @@ router.post('/:id/update', async (req, res) => {
 // Export plan & trace
 router.get('/:id/export', async (req, res) => {
   const sessionId = req.params.id;
-  const plan = globalStore.getLatestPlan(sessionId);
-  const traces = globalStore.getTracesBySession(sessionId);
+  const plan = await globalStore.getLatestPlan(sessionId);
+  const traces = await globalStore.getTracesBySession(sessionId);
   const tokenSummary = traceService.tokenAccumulator.getSummary();
 
   if (!plan) {

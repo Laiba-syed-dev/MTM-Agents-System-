@@ -38,7 +38,7 @@ async function runCli() {
         const sessionId = `session_${Date.now()}`;
         const packId = `pack_${contentHash.substring(0, 8)}`;
 
-        globalStore.addMessagePack({
+        await globalStore.addMessagePack({
           _id: packId,
           originalFileName: path.basename(targetFile),
           originalContent: rawContent,
@@ -52,7 +52,7 @@ async function runCli() {
         const messages = parseMessagePack(rawContent, packId, sessionId);
         logger.success(`Extracted ${messages.length} raw messages from message pack.`);
         for (const msg of messages) {
-          globalStore.addMessage(msg);
+          await globalStore.addMessage(msg);
         }
 
         // Step 4: AI Fact Extraction (FR-03, FR-04)
@@ -63,7 +63,7 @@ async function runCli() {
         // Step 5: Fact Resolution (FR-05, FR-06, FR-07, FR-08)
         logger.step(3, 'Fact Verification & Conflict Resolution Engine');
         const resolver = new FactResolver(sessionId);
-        const { acceptedFacts, rejectedRecords } = resolver.resolveFacts(extractedFacts, messages);
+        const { acceptedFacts, rejectedRecords } = await resolver.resolveFacts(extractedFacts, messages);
         logger.success(`Resolved facts: ${acceptedFacts.length} ACCEPTED, ${rejectedRecords.length} REJECTED / DISPUTED.`);
 
         // Step 6: 5-Area Event Planning (FR-09)

@@ -39,7 +39,7 @@ export class TraceService {
     };
 
     this.traces.push(traceRecord);
-    globalStore.addTrace(traceRecord);
+    globalStore.addTrace(traceRecord).catch((err) => console.error('[Store Error]', err.message));
 
     // Print immediately to terminal as mandated by hackathon rules
     logger.trace(traceRecord);

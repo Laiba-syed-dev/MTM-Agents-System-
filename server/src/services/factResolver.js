@@ -5,7 +5,7 @@ export class FactResolver {
     this.sessionId = sessionId;
   }
 
-  resolveFacts(facts, messages) {
+  async resolveFacts(facts, messages) {
     const messageMap = new Map(messages.map((m) => [m._id, m]));
     const acceptedFacts = [];
     const rejectedRecords = [];
@@ -92,7 +92,7 @@ export class FactResolver {
 
     // Persist rejected messages
     for (const rej of rejectedRecords) {
-      globalStore.addRejectedMessage(rej);
+      await globalStore.addRejectedMessage(rej);
     }
 
     return {

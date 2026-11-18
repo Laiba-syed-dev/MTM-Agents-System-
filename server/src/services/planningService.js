@@ -52,13 +52,13 @@ export class PlanningService {
     draftPlan.status = validationResult.valid ? 'valid' : 'invalid';
 
     // 5. Persist to store
-    globalStore.addPlan(draftPlan);
+    await globalStore.addPlan(draftPlan);
 
     return draftPlan;
   }
 
   async updatePlanWithNewMessage(rawMessageText) {
-    const previousPlan = globalStore.getLatestPlan(this.sessionId);
+    const previousPlan = await globalStore.getLatestPlan(this.sessionId);
     if (!previousPlan) {
       throw new Error('No existing plan found to update. Run initial processing first.');
     }
@@ -76,7 +76,7 @@ export class PlanningService {
       language: 'english',
       receivedAt: new Date(),
     };
-    globalStore.addMessage(updateMsg);
+    await globalStore.addMessage(updateMsg);
 
     logger.info(`Analyzing impact for incremental message: "${rawMessageText}"`);
     const affectedAreas = analyzeMessageImpact(rawMessageText);
@@ -98,7 +98,7 @@ export class PlanningService {
         decision: 'rejected',
         createdAt: new Date(),
       };
-      globalStore.addRejectedMessage(rej);
+      await globalStore.addRejectedMessage(rej);
 
       traceService.recordCall({
         sessionId: this.sessionId,
@@ -201,7 +201,7 @@ export class PlanningService {
     newPlanDraft.status = validationResult.valid ? 'valid' : 'invalid';
 
     if (validationResult.valid) {
-      globalStore.addPlan(newPlanDraft);
+      await globalStore.addPlan(newPlanDraft);
       logger.success(`Plan updated successfully to version ${newVersion}. Validation: PASSED.`);
       return {
         success: true,

@@ -63,33 +63,35 @@ Return JSON with format:
   }
 
   // Ensure source message linkage
-  const enrichedFacts = facts.map((fact, index) => {
-    // If sourceMessageId is missing, find matching message by evidence text
-    let matchedMsgId = fact.sourceMessageId;
-    if (!matchedMsgId || !messages.some((m) => m._id === matchedMsgId)) {
-      const found = messages.find((m) => m.rawText.toLowerCase().includes((fact.evidenceText || '').toLowerCase()));
-      matchedMsgId = found ? found._id : messages[0]._id;
-    }
+  const enrichedFacts = await Promise.all(
+    facts.map(async (fact, index) => {
+      // If sourceMessageId is missing, find matching message by evidence text
+      let matchedMsgId = fact.sourceMessageId;
+      if (!matchedMsgId || !messages.some((m) => m._id === matchedMsgId)) {
+        const found = messages.find((m) => m.rawText.toLowerCase().includes((fact.evidenceText || '').toLowerCase()));
+        matchedMsgId = found ? found._id : messages[0]._id;
+      }
 
-    const factRecord = {
-      _id: `fact_${String(index + 1).padStart(3, '0')}`,
-      sessionId,
-      messageId: matchedMsgId,
-      category: fact.category || 'general',
-      field: fact.field,
-      value: fact.value,
-      unit: fact.unit || '',
-      evidenceText: fact.evidenceText || '',
-      confidence: fact.confidence || 0.95,
-      decision: 'pending',
-      decisionReason: '',
-      supersedesFactId: null,
-      validity: fact.validity || 'current',
-    };
+      const factRecord = {
+        _id: `fact_${String(index + 1).padStart(3, '0')}`,
+        sessionId,
+        messageId: matchedMsgId,
+        category: fact.category || 'general',
+        field: fact.field,
+        value: fact.value,
+        unit: fact.unit || '',
+        evidenceText: fact.evidenceText || '',
+        confidence: fact.confidence || 0.95,
+        decision: 'pending',
+        decisionReason: '',
+        supersedesFactId: null,
+        validity: fact.validity || 'current',
+      };
 
-    globalStore.addFact(factRecord);
-    return factRecord;
-  });
+      await globalStore.addFact(factRecord);
+      return factRecord;
+    })
+  );
 
   return enrichedFacts;
 }
